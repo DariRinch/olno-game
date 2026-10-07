@@ -24,49 +24,56 @@ export function SecondMapScreen({ now, otherwise, onRestart, onConsult }: Second
   }
 
   return (
-    <div className="flex flex-1 flex-col">
-      <Wordmark />
-      <p className="mt-8 text-sm text-muted-foreground">Две петли</p>
-      <h1 className="mt-1 font-display text-4xl leading-tight font-semibold tracking-[-0.03em]">
-        Твоя карта
-      </h1>
-      <p className="mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
-        Ситуация та же. В одной петле заменено одно место — твоя формулировка.
-      </p>
-
-      <div className="mt-8 grid gap-10 md:grid-cols-2 md:items-start">
-        <section aria-label="Как происходит сейчас">
-          <h2 className="font-display text-2xl font-semibold tracking-[-0.03em]">
-            Как происходит сейчас
-          </h2>
-          <div className="mt-4">
-            <LoopMap nodes={now} />
-          </div>
-        </section>
-        <section aria-label="Как могло бы быть иначе">
-          <h2 className="font-display text-2xl font-semibold tracking-[-0.03em]">
-            Как могло бы быть иначе
-          </h2>
-          <div className="mt-4">
-            <LoopMap nodes={otherwise} />
-          </div>
-        </section>
+    <div>
+      <div className="md:grid md:grid-cols-12 md:gap-x-8">
+        <div className="md:col-span-4">
+          <Wordmark />
+          <p className="mt-8 text-sm text-[var(--olno-burgundy-soft)]">Две петли</p>
+          <h1 className="mt-1 max-w-xs font-display text-4xl leading-tight font-semibold tracking-[-0.03em]">
+            Твоя карта
+          </h1>
+          <p className="mt-4 max-w-xs text-base leading-relaxed text-[var(--olno-burgundy-soft)]">
+            Ситуация та же. В одной петле заменено одно место — твоя формулировка.
+          </p>
+        </div>
+        <div className="mt-8 md:col-span-8 md:mt-2">
+          <LoopMap
+            nodes={now}
+            branch={otherwise}
+            draw="still"
+            variant="panel"
+            keptCaption="Как происходит сейчас"
+            branchCaption="Как могло бы быть иначе"
+          />
+        </div>
       </div>
 
       {saveError ? (
-        <p role="alert" className="mt-4 text-sm text-destructive">
+        <p role="alert" className="mt-4 text-sm text-[var(--olno-burgundy)]">
           {saveError}
         </p>
       ) : null}
 
-      <div className="mt-10 grid gap-2 md:max-w-sm">
-        <Button type="button" size="lg" className="h-12 w-full text-base" onClick={() => void saveMap()}>
+      <div className="mt-12 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <Button type="button" size="lg" className="h-12 w-full text-base sm:w-auto sm:min-w-52" onClick={() => void saveMap()}>
           Сохранить карту
         </Button>
-        <Button type="button" size="lg" variant="outline" className="h-12 w-full bg-card text-base" onClick={onRestart}>
+        <Button
+          type="button"
+          size="lg"
+          variant="outline"
+          className="h-12 w-full border-[var(--olno-line)] bg-transparent text-base sm:w-auto"
+          onClick={onRestart}
+        >
           Начать заново
         </Button>
-        <Button type="button" size="lg" variant="outline" className="h-12 w-full bg-card text-base" onClick={onConsult}>
+        <Button
+          type="button"
+          size="lg"
+          variant="outline"
+          className="h-12 w-full border-[var(--olno-line)] bg-transparent text-base sm:w-auto"
+          onClick={onConsult}
+        >
           Разобрать карту с Ольгой
         </Button>
       </div>

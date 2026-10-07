@@ -1,9 +1,14 @@
 import type { LoopNodeView } from "@/components/LoopMap"
+import { NODE_IDS } from "@/game/types"
 
-const WIDTH = 1080
-const PADDING = 64
-const GUTTER = 48
-const CARD_PAD = 28
+const WIDTH = 1400
+const PADDING = 72
+const TEXT_WIDTH = 360
+
+const IVORY = "#FBF7F0"
+const BURGUNDY = "#4A1424"
+const GOLD = "#8A6A2F"
+const SOFT = "rgba(74, 20, 36, 0.66)"
 
 export async function downloadMapPng(input: {
   now: readonly LoopNodeView[]
@@ -16,31 +21,45 @@ export async function downloadMapPng(input: {
   const ctx = canvas.getContext("2d")
   if (!ctx) throw new Error("canvas")
 
-  const contentWidth = WIDTH - PADDING * 2
-  const cardWidth = (contentWidth - GUTTER) / 2
-  const nowHeights = rowHeights(ctx, input.now, cardWidth)
-  const altHeights = rowHeights(ctx, input.otherwise, cardWidth)
-  const block = (heights: [number, number]) => heights[0] + 36 + heights[1]
-  const height = PADDING + 78 + 36 + block(nowHeights) + 72 + block(altHeights) + PADDING
+  const placed = layout(ctx, input.now, input.otherwise)
+  const height = Math.max(...placed.map((item) => item.bottom)) + PADDING
 
   const scale = 2
   canvas.width = WIDTH * scale
   canvas.height = height * scale
   ctx.scale(scale, scale)
 
-  ctx.fillStyle = "#f6f1e7"
+  ctx.fillStyle = IVORY
   ctx.fillRect(0, 0, WIDTH, height)
 
-  ctx.fillStyle = "#3a322c"
-  ctx.font = "600 42px 'Literata Variable', Georgia, serif"
-  ctx.fillText("ОЛНО", PADDING, PADDING + 36)
+  ctx.fillStyle = "rgba(74, 20, 36, 0.05)"
+  ctx.beginPath()
+  ctx.ellipse(WIDTH - 180, 120, 160, 110, 0.4, 0, Math.PI * 2)
+  ctx.fill()
 
-  let y = PADDING + 78
-  y = drawHeading(ctx, "Как происходит сейчас", y)
-  y = drawLoop(ctx, input.now, y, cardWidth, nowHeights)
-  y += 48
-  y = drawHeading(ctx, "Как могло бы быть иначе", y)
-  drawLoop(ctx, input.otherwise, y, cardWidth, altHeights)
+  ctx.fillStyle = BURGUNDY
+  ctx.font = "600 42px 'Literata Variable', Georgia, serif"
+  ctx.textAlign = "left"
+  ctx.fillText("ОЛНО", PADDING, PADDING + 28)
+
+  const main = placed.filter((item) => item.kind === "main")
+  strokeLoop(
+    ctx,
+    main.map((item) => ({ x: item.cx, y: item.cy })),
+  )
+  const branch = placed.find((item) => item.kind === "branch")
+  const from = main.find((item) => item.id === branch?.id)
+  if (branch && from) {
+    ctx.strokeStyle = GOLD
+    ctx.lineWidth = 1.6
+    ctx.lineCap = "round"
+    ctx.beginPath()
+    ctx.moveTo(from.cx, from.cy)
+    ctx.lineTo(branch.cx, branch.cy)
+    ctx.stroke()
+  }
+
+  for (const item of placed) drawNode(ctx, item)
 
   const link = document.createElement("a")
   link.href = canvas.toDataURL("image/png")
@@ -48,140 +67,168 @@ export async function downloadMapPng(input: {
   link.click()
 }
 
-function drawHeading(ctx: CanvasRenderingContext2D, title: string, y: number): number {
-  ctx.fillStyle = "#3a322c"
-  ctx.font = "600 28px 'Literata Variable', Georgia, serif"
-  ctx.fillText(title, PADDING, y + 28)
-  return y + 48
+type Placed = {
+  kind: "main" | "branch"
+  id: LoopNodeView["id"]
+  cx: number
+  cy: number
+  textX: number
+  align: CanvasTextAlign
+  title: string
+  text: string
+  caption?: string
+  placeLabel?: string
+  quiet: boolean
+  bottom: number
 }
 
-function rowHeights(
+const CORNER: Record<LoopNodeView["id"], { cx: number; cy: number; align: CanvasTextAlign; textX: number; above: boolean }> = {
+  situation: { cx: 380, cy: 340, align: "right", textX: 348, above: true },
+  inside: { cx: 1020, cy: 340, align: "left", textX: 1052, above: true },
+  action: { cx: 1020, cy: 820, align: "left", textX: 1052, above: false },
+  consequence: { cx: 380, cy: 820, align: "right", textX: 348, above: false },
+}
+
+function layout(
   ctx: CanvasRenderingContext2D,
-  nodes: readonly LoopNodeView[],
-  cardWidth: number,
-): [number, number] {
-  ctx.font = "400 22px 'Geist Variable', sans-serif"
-  const heightFor = (node: LoopNodeView | undefined) => {
-    const lines = wrap(ctx, node?.text ?? "", cardWidth - CARD_PAD * 2)
-    const place = node?.placeLabel ? 26 : 0
-    return CARD_PAD + 22 + 16 + place + lines.length * 30 + CARD_PAD
+  now: readonly LoopNodeView[],
+  otherwise: readonly LoopNodeView[],
+): Placed[] {
+  const placed: Placed[] = []
+  for (const id of NODE_IDS) {
+    const node = now.find((item) => item.id === id)
+    const alt = otherwise.find((item) => item.id === id)
+    if (!node) continue
+    const spot = CORNER[id]
+    const changed = Boolean(alt && alt.text !== node.text)
+    const block = measureBlock(ctx, node.text, changed ? "Как происходит сейчас" : undefined, undefined)
+    placed.push({
+      kind: "main",
+      id,
+      cx: spot.cx,
+      cy: spot.cy,
+      textX: spot.textX,
+      align: spot.align,
+      title: node.title,
+      text: node.text,
+      caption: changed ? "Как происходит сейчас" : undefined,
+      quiet: changed,
+      bottom: spot.above ? spot.cy : spot.cy + block,
+    })
+    if (changed && alt) {
+      const outward = id === "situation" || id === "consequence" ? -150 : 150
+      const down = id === "situation" || id === "inside" ? -120 : 120
+      placed.push({
+        kind: "branch",
+        id,
+        cx: spot.cx + outward,
+        cy: spot.cy + down,
+        textX: spot.cx + outward + (outward < 0 ? -28 : 28),
+        align: outward < 0 ? "right" : "left",
+        title: alt.title,
+        text: alt.text,
+        caption: "Как могло бы быть иначе",
+        placeLabel: alt.placeLabel,
+        quiet: false,
+        bottom: spot.cy + down + measureBlock(ctx, alt.text, "Как могло бы быть иначе", alt.placeLabel),
+      })
+    }
   }
-  const find = (id: LoopNodeView["id"]) => nodes.find((node) => node.id === id)
-  return [
-    Math.max(heightFor(find("situation")), heightFor(find("inside"))),
-    Math.max(heightFor(find("action")), heightFor(find("consequence"))),
-  ]
+  return placed
 }
 
-function drawLoop(
-  ctx: CanvasRenderingContext2D,
-  nodes: readonly LoopNodeView[],
-  top: number,
-  cardWidth: number,
-  heights: [number, number],
-): number {
-  const left = PADDING
-  const right = PADDING + cardWidth + GUTTER
-  const bottom = top + heights[0] + 36
-  const find = (id: LoopNodeView["id"]) => nodes.find((node) => node.id === id)
-
-  drawCard(ctx, find("situation"), left, top, cardWidth, heights[0])
-  drawCard(ctx, find("inside"), right, top, cardWidth, heights[0])
-  drawCard(ctx, find("consequence"), left, bottom, cardWidth, heights[1])
-  drawCard(ctx, find("action"), right, bottom, cardWidth, heights[1])
-
-  ctx.strokeStyle = "#a56a45"
-  ctx.fillStyle = "#a56a45"
-  ctx.lineWidth = 1.5
-  arrow(ctx, left + cardWidth + 8, top + heights[0] / 2, right - 8, top + heights[0] / 2)
-  arrow(ctx, right + cardWidth / 2, top + heights[0] + 8, right + cardWidth / 2, bottom - 8)
-  arrow(ctx, right - 8, bottom + heights[1] / 2, left + cardWidth + 8, bottom + heights[1] / 2)
-  arrow(ctx, left + cardWidth / 2, bottom - 8, left + cardWidth / 2, top + heights[0] + 8)
-
-  return bottom + heights[1]
+function measureBlock(ctx: CanvasRenderingContext2D, text: string, caption?: string, place?: string) {
+  ctx.font = "400 22px 'Geist Variable', sans-serif"
+  const lines = wrap(ctx, text, TEXT_WIDTH)
+  return 22 + (caption ? 22 : 0) + (place ? 20 : 0) + lines.length * 30 + 8
 }
 
-function drawCard(
-  ctx: CanvasRenderingContext2D,
-  node: LoopNodeView | undefined,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-) {
-  if (!node) return
-  roundRect(ctx, x, y, width, height, 18)
-  ctx.fillStyle = "#fffcf8"
+function drawNode(ctx: CanvasRenderingContext2D, item: Placed) {
+  ctx.beginPath()
+  ctx.arc(item.cx, item.cy, 15, 0, Math.PI * 2)
+  ctx.fillStyle = IVORY
   ctx.fill()
-  ctx.strokeStyle = node.placeLabel ? "#a56a45" : "#e4d9cc"
-  ctx.lineWidth = node.placeLabel ? 2 : 1
+  ctx.strokeStyle = item.quiet ? "rgba(74, 20, 36, 0.4)" : BURGUNDY
+  ctx.lineWidth = item.kind === "branch" ? 2 : 1.25
   ctx.stroke()
+  ctx.beginPath()
+  ctx.arc(item.cx, item.cy, 2.6, 0, Math.PI * 2)
+  ctx.fillStyle = GOLD
+  ctx.fill()
 
-  ctx.fillStyle = "#7a7068"
+  ctx.textAlign = item.align
+  ctx.textBaseline = "top"
+  ctx.font = "400 22px 'Geist Variable', sans-serif"
+  const lines = wrap(ctx, item.text, TEXT_WIDTH)
+  const block = 22 + (item.caption ? 22 : 0) + (item.placeLabel ? 20 : 0) + lines.length * 30
+  const above = item.cy < 560
+  let textY = above ? item.cy - 28 - block : item.cy + 28
   ctx.font = "500 14px 'Geist Variable', sans-serif"
-  ctx.fillText(node.title.toUpperCase(), x + CARD_PAD, y + CARD_PAD + 8)
-
-  let textTop = y + CARD_PAD + 36
-  if (node.placeLabel) {
-    ctx.fillStyle = "#a56a45"
-    ctx.font = "500 16px 'Geist Variable', sans-serif"
-    ctx.fillText(node.placeLabel, x + CARD_PAD, textTop)
-    textTop += 26
+  if (item.caption) {
+    ctx.fillStyle = GOLD
+    ctx.fillText(item.caption, item.textX, textY)
+    textY += 22
   }
-
-  ctx.fillStyle = "#3a322c"
+  ctx.fillStyle = SOFT
+  ctx.fillText(item.title, item.textX, textY)
+  textY += 22
+  if (item.placeLabel) {
+    ctx.fillStyle = GOLD
+    ctx.fillText(item.placeLabel, item.textX, textY)
+    textY += 20
+  }
+  ctx.fillStyle = item.quiet ? "rgba(74, 20, 36, 0.55)" : BURGUNDY
   ctx.font = "400 22px 'Geist Variable', sans-serif"
-  const lines = wrap(ctx, node.text, width - CARD_PAD * 2)
-  lines.forEach((line, index) => {
-    ctx.fillText(line, x + CARD_PAD, textTop + index * 30)
-  })
+  for (const line of lines) {
+    ctx.fillText(line, item.textX, textY)
+    textY += 30
+  }
 }
 
-function arrow(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
+function strokeLoop(ctx: CanvasRenderingContext2D, points: { x: number; y: number }[]) {
+  if (points.length < 2) return
+  ctx.strokeStyle = GOLD
+  ctx.lineWidth = 1.6
+  ctx.lineCap = "round"
+  ctx.lineJoin = "round"
   ctx.beginPath()
-  ctx.moveTo(x1, y1)
-  ctx.lineTo(x2, y2)
+  ctx.moveTo(points[0].x, points[0].y)
+  for (let i = 1; i < points.length; i += 1) ctx.lineTo(points[i].x, points[i].y)
+  ctx.closePath()
   ctx.stroke()
-  const angle = Math.atan2(y2 - y1, x2 - x1)
-  const size = 8
-  ctx.beginPath()
-  ctx.moveTo(x2, y2)
-  ctx.lineTo(x2 - size * Math.cos(angle - 0.45), y2 - size * Math.sin(angle - 0.45))
-  ctx.lineTo(x2 - size * Math.cos(angle + 0.45), y2 - size * Math.sin(angle + 0.45))
-  ctx.closePath()
-  ctx.fill()
-}
-
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number,
-) {
-  ctx.beginPath()
-  ctx.moveTo(x + radius, y)
-  ctx.arcTo(x + width, y, x + width, y + height, radius)
-  ctx.arcTo(x + width, y + height, x, y + height, radius)
-  ctx.arcTo(x, y + height, x, y, radius)
-  ctx.arcTo(x, y, x + width, y, radius)
-  ctx.closePath()
 }
 
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(" ")
   const lines: string[] = []
   let line = ""
-  for (const word of words) {
-    const next = line ? `${line} ${word}` : word
-    if (ctx.measureText(next).width > maxWidth && line) {
-      lines.push(line)
-      line = word
-    } else {
-      line = next
+  for (const word of text.split(" ")) {
+    const parts = ctx.measureText(word).width > maxWidth ? breakWord(ctx, word, maxWidth) : [word]
+    for (const part of parts) {
+      const next = line ? `${line} ${part}` : part
+      if (ctx.measureText(next).width > maxWidth && line) {
+        lines.push(line)
+        line = part
+      } else {
+        line = next
+      }
     }
   }
   if (line) lines.push(line)
   return lines.length > 0 ? lines : [""]
+}
+
+function breakWord(ctx: CanvasRenderingContext2D, word: string, maxWidth: number): string[] {
+  const parts: string[] = []
+  let chunk = ""
+  for (const char of word) {
+    const next = chunk + char
+    if (ctx.measureText(next).width > maxWidth && chunk) {
+      parts.push(chunk)
+      chunk = char
+    } else {
+      chunk = next
+    }
+  }
+  if (chunk) parts.push(chunk)
+  return parts
 }

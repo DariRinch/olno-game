@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from "react"
 import type { TextSource } from "@/game/types"
+import { ChoiceNode } from "@/components/ChoiceNode"
+import { PathMark } from "@/components/PathMark"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,6 +20,8 @@ type NodeScreenProps = {
   keepSource?: TextSource
   onCommit: (text: string, source: TextSource) => "empty" | void
 }
+
+const shift = ["md:pl-0", "md:pl-[14%]", "md:pl-[4%]", "md:pl-[22%]", "md:pl-[8%]", "md:pl-[16%]"]
 
 export function NodeScreen({
   index,
@@ -57,82 +61,92 @@ export function NodeScreen({
   }
 
   const refine = words.trim().length > 0
+  const chosen = Boolean(phraseId) || refine
 
   return (
     <form className="flex flex-1 flex-col" onSubmit={handleSubmit}>
       <Wordmark />
-      <p className="mt-8 text-sm text-muted-foreground">
-        Узел {index} из {total} · {title}
-      </p>
-      <h1 className="mt-3 font-display text-[1.75rem] leading-snug font-semibold tracking-[-0.03em] md:text-4xl">
-        {question}
-      </h1>
-
-      {keptText ? (
-        <blockquote className="mt-6 rounded-2xl border border-border bg-card px-4 py-4 text-base leading-relaxed">
-          {keptText}
-        </blockquote>
-      ) : null}
-
-      {phrases ? (
-        <div className="mt-6 grid gap-2" role="group" aria-label="Фразы">
-          {phrases.map((phrase) => {
-            const selected = phrase.id === phraseId
-            return (
-              <Button
-                key={phrase.id}
-                type="button"
-                variant={selected ? "default" : "outline"}
-                aria-pressed={selected}
-                className={cn(
-                  "h-auto min-h-12 w-full justify-start px-4 py-3 text-left text-base whitespace-normal",
-                  !selected && "bg-card",
-                )}
-                onClick={() => {
-                  setPhraseId(phrase.id)
-                  setWords("")
-                  setError("")
-                }}
-              >
-                {phrase.text}
-              </Button>
-            )
-          })}
-        </div>
-      ) : (
-        <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-          Это то, с чем ты пришёл. Можно оставить или уточнить своими словами.
-        </p>
-      )}
-
-      <div className="mt-6">
-        <Label htmlFor="node-words" className="text-base">
-          {phrases ? "Или своими словами" : "Уточнить своими словами"}
-        </Label>
-        <Input
-          id="node-words"
-          value={words}
-          maxLength={280}
-          placeholder={phrases ? "Одна фраза своими словами" : "Если хочешь сказать точнее"}
-          aria-invalid={Boolean(error)}
-          className="mt-2 h-12 bg-card px-3 text-base md:text-base"
-          onChange={(event) => {
-            setWords(event.target.value)
-            if (event.target.value.trim()) setPhraseId(null)
-            if (error) setError("")
-          }}
-        />
-        {error ? (
-          <p role="alert" className="mt-2 text-sm text-destructive">
-            {error}
+      <div className="mt-8 md:grid md:grid-cols-12 md:gap-x-8 md:gap-y-6">
+        <div className="md:col-span-5">
+          <p className="text-sm text-[var(--olno-burgundy-soft)]">
+            Узел {index} из {total} · {title}
           </p>
-        ) : null}
-      </div>
+          <h1 className="mt-3 max-w-md font-display text-[1.75rem] leading-snug font-semibold tracking-[-0.03em] md:text-4xl">
+            {question}
+          </h1>
+          {keptText ? (
+            <div className="mt-6 flex max-w-md items-start gap-3">
+              <PathMark active />
+              <blockquote className="min-w-0 text-base leading-relaxed text-[var(--olno-burgundy)]">{keptText}</blockquote>
+            </div>
+          ) : null}
+          {phrases ? null : (
+            <p className="mt-4 max-w-sm text-base leading-relaxed text-[var(--olno-burgundy-soft)]">
+              Это то, с чем ты пришёл. Можно оставить или уточнить своими словами.
+            </p>
+          )}
+        </div>
 
-      <div className="mt-auto pt-10">
-        <Button type="submit" size="lg" className="h-12 w-full text-base">
-          {phrases ? "Записать узел" : refine ? "Записать свои слова" : "Оставить так"}
-        </Button>
+        {phrases ? (
+          <div className="relative mt-8 md:col-span-7 md:col-start-6 md:row-span-3 md:mt-0 md:row-start-1" role="group" aria-label="Фразы">
+            <div className="absolute top-2 bottom-2 left-[1.35rem] w-px bg-[var(--olno-line)] md:left-5" aria-hidden />
+            <div className="grid gap-1">
+              {phrases.map((phrase, phraseIndex) => {
+                const selected = phrase.id === phraseId
+                return (
+                  <div
+                    key={phrase.id}
+                    className={cn(phraseIndex % 2 === 0 ? "pl-0" : "pl-4", shift[phraseIndex] ?? "md:pl-0")}
+                  >
+                    <ChoiceNode
+                      selected={selected}
+                      quiet={chosen && !selected}
+                      onClick={() => {
+                        setPhraseId(phrase.id)
+                        setWords("")
+                        setError("")
+                      }}
+                    >
+                      {phrase.text}
+                    </ChoiceNode>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="hidden md:col-span-6 md:block" />
+        )}
+
+        <div className="mt-8 max-w-md md:col-span-5 md:mt-0">
+          <Label htmlFor="node-words" className="text-base">
+            {phrases ? "Или своими словами" : "Уточнить своими словами"}
+          </Label>
+          <Input
+            id="node-words"
+            value={words}
+            maxLength={280}
+            placeholder={phrases ? "Одна фраза своими словами" : "Если хочешь сказать точнее"}
+            aria-invalid={Boolean(error)}
+            className="mt-2 h-12 border-[var(--olno-line)] bg-transparent px-3 text-base md:text-base"
+            onChange={(event) => {
+              setWords(event.target.value)
+              if (event.target.value.trim()) setPhraseId(null)
+              if (error) setError("")
+            }}
+          />
+          {error ? (
+            <p role="alert" className="mt-2 text-sm text-[var(--olno-burgundy)]">
+              {error}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="mt-8 md:col-span-5 md:mt-0">
+          <Button type="submit" size="lg" className="h-12 w-full text-base sm:w-auto sm:min-w-52">
+            {phrases ? "Записать узел" : refine ? "Записать свои слова" : "Оставить так"}
+          </Button>
+        </div>
       </div>
     </form>
   )

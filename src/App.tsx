@@ -91,6 +91,7 @@ export default function App() {
 
       {state.screen === "alternative" ? (
         <AlternativeScreen
+          nodes={nowTexts ? toViews(nowTexts) : []}
           onSubmit={(place, text, source) => {
             const result = submitAlternative(state, place, text, source)
             if (result === "empty") return "empty"

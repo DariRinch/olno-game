@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { Atmosphere } from "@/components/atmosphere/Atmosphere"
 import { cn } from "cn"
 
 type ShellProps = {
@@ -9,15 +10,16 @@ type ShellProps = {
 
 export function Shell({ children, screen, width = "prose" }: ShellProps) {
   return (
-    <div className="min-h-dvh bg-background text-foreground" data-screen={screen}>
+    <Atmosphere>
       <div
         className={cn(
-          "mx-auto flex min-h-dvh w-full flex-col px-5 pt-7 pb-[max(1.75rem,env(safe-area-inset-bottom))] md:px-10 md:pt-12",
-          width === "wide" ? "max-w-3xl" : "max-w-xl",
+          "relative mx-auto flex min-h-dvh w-full max-w-none flex-col px-10 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:px-16 md:pt-10",
         )}
+        data-screen={screen}
+        data-width={width}
       >
         {children}
       </div>
-    </div>
+    </Atmosphere>
   )
 }
