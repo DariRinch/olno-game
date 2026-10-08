@@ -1,137 +1,87 @@
-import { useEffect, useState } from "react"
-import { AlternativeScreen } from "@/components/screens/AlternativeScreen"
-import { ConsultScreen } from "@/components/screens/ConsultScreen"
+import { useEffect, useRef, useState } from "react"
 import { HomeScreen } from "@/components/screens/HomeScreen"
-import { LoopScreen } from "@/components/screens/LoopScreen"
-import { NodeScreen } from "@/components/screens/NodeScreen"
-import { SecondMapScreen } from "@/components/screens/SecondMapScreen"
-import { SituationScreen } from "@/components/screens/SituationScreen"
+import { EightFlow } from "@/components/screens/EightFlow"
 import { Shell } from "@/components/Shell"
-import { DevGate } from "@/dev/DevGate"
-import { nodeMeta, nodePhrases, places } from "@/game/cards"
+import { remember } from "@/game/mechanic/analytics"
+import { SPEC_VERSION } from "@/game/mechanic/cards"
 import {
-  changedNodeId,
+  STORAGE_KEY,
+  contactCode,
   goBack,
-  loopTexts,
-  openAlternative,
-  openConsult,
+  loadRun,
   openSituation,
-  startNewGame,
-  submitAlternative,
-  submitNode,
-  submitSituation,
-} from "@/game/gameEngine"
-import { currentNodeId, loadRun, nodeTitle, saveRun } from "@/game/state"
-import { NODE_IDS, type GameState, type NodeId } from "@/game/types"
-import type { LoopNodeView } from "@/components/LoopMap"
-
-function toViews(texts: Record<NodeId, string>, mark?: { id: NodeId; placeLabel: string }): LoopNodeView[] {
-  return NODE_IDS.map((id) => ({
-    id,
-    title: nodeTitle(id),
-    text: texts[id],
-    placeLabel: mark && mark.id === id ? mark.placeLabel : undefined,
-  }))
-}
+  saveRun,
+  type Run,
+} from "@/game/mechanic/flow"
 
 export default function App() {
-  const [state, setState] = useState<GameState>(() => loadRun())
+  const [run, setRun] = useState<Run>(() => loadRun(localStorage.getItem(STORAGE_KEY)))
+  const entered = useRef(0)
 
   useEffect(() => {
-    saveRun(state)
-  }, [state])
+    entered.current = Date.now()
+  }, [])
 
-  const nodeId = currentNodeId(state)
-  const wide =
-    state.screen === "home" ||
-    state.screen === "loop" ||
-    state.screen === "second-map" ||
-    state.screen === "alternative"
-  const nowTexts = loopTexts(state, "now")
-  const altTexts = loopTexts(state, "otherwise")
-  const placeLabel = places.find((place) => place.id === state.chosenPlace)?.label
-  const mark =
-    state.chosenPlace && placeLabel
-      ? { id: changedNodeId(state.chosenPlace), placeLabel }
-      : undefined
+  useEffect(() => {
+    saveRun(run, localStorage)
+  }, [run])
+
+  useEffect(() => {
+    const onHide = () => {
+      const move = run.moves[run.editing]
+      remember({
+        session_id: run.sessionId,
+        spec_version: SPEC_VERSION,
+        source: run.situationSource,
+        theme: run.themeId,
+        contact: contactCode(move ?? null),
+        card: move?.card ?? null,
+        move: move?.card ?? (run.moves.length > 0 ? "unresolved" : null),
+        changed_after_disambiguation: move?.changedAfterDisambiguation === true,
+        step_number: run.moves.length || null,
+        step_time: Date.now() - entered.current,
+        dropoff_step: run.screen,
+      }, localStorage)
+    }
+    window.addEventListener("pagehide", onHide)
+    return () => window.removeEventListener("pagehide", onHide)
+  }, [run])
+
+  function commit(next: Run) {
+    const move = next.moves[next.editing]
+    const last = move?.log.at(-1)
+    remember({
+      session_id: next.sessionId,
+      spec_version: SPEC_VERSION,
+      source: next.situationSource,
+      theme: next.themeId,
+      contact: contactCode(move ?? null),
+      card: move?.card ?? null,
+      move: move?.card ?? (next.moves.length > 0 ? "unresolved" : null),
+      pair_shown: last?.pair ?? null,
+      pair_answer: last?.answer ?? null,
+      recognition: move?.recognition ?? null,
+      changed_after_disambiguation: move?.changedAfterDisambiguation === true,
+      step_number: next.moves.length || null,
+      step_time: Date.now() - entered.current,
+    }, localStorage)
+    entered.current = Date.now()
+    setRun(next)
+  }
+
+  const wide = run.screen === "home" || run.screen === "route" || run.screen === "fork" || run.screen === "compare" || run.screen === "result"
 
   return (
     <Shell
-      screen={state.screen}
+      screen={run.screen}
       width={wide ? "wide" : "prose"}
-      onBack={state.screen === "home" ? undefined : () => setState((current) => goBack(current))}
+      onBack={run.screen === "home" ? undefined : () => commit(goBack(run))}
     >
-      {state.screen === "home" ? (
-        <HomeScreen onStart={() => setState((current) => openSituation(current))} />
-      ) : null}
-
-      {state.screen === "situation" ? (
-        <SituationScreen
-          initialText={state.situationText}
-          initialSource={state.situationSource}
-          onSubmit={(text, source) => {
-            const result = submitSituation(state, text, source)
-            if (result === "empty") return "empty"
-            setState(result)
-          }}
-        />
-      ) : null}
-
-      {state.screen === "node" && nodeId ? (
-        <NodeScreen
-          key={nodeId}
-          index={NODE_IDS.indexOf(nodeId) + 1}
-          total={NODE_IDS.length}
-          title={nodeMeta[nodeId].title}
-          question={nodeMeta[nodeId].question}
-          phrases={nodeId === "situation" ? undefined : nodePhrases[nodeId]}
-          keptText={nodeId === "situation" ? state.situationText : undefined}
-          keepSource={state.situationSource ?? "own"}
-          initialText={state.nodes[nodeId]?.text ?? ""}
-          initialSource={state.nodes[nodeId]?.source ?? null}
-          onCommit={(text, source) => {
-            const result = submitNode(state, nodeId, text, source)
-            if (result === "empty") return "empty"
-            setState(result)
-          }}
-        />
-      ) : null}
-
-      {state.screen === "loop" && nowTexts ? (
-        <LoopScreen nodes={toViews(nowTexts)} onContinue={() => setState((current) => openAlternative(current))} />
-      ) : null}
-
-      {state.screen === "alternative" ? (
-        <AlternativeScreen
-          nodes={nowTexts ? toViews(nowTexts) : []}
-          initialPlace={state.chosenPlace}
-          initialText={state.alternativeText}
-          initialSource={state.alternativeSource}
-          onSubmit={(place, text, source) => {
-            const result = submitAlternative(state, place, text, source)
-            if (result === "empty") return "empty"
-            setState(result)
-          }}
-        />
-      ) : null}
-
-      {state.screen === "second-map" && nowTexts && altTexts && mark ? (
-        <SecondMapScreen
-          now={toViews(nowTexts)}
-          otherwise={toViews(altTexts, mark)}
-          onRestart={() => setState(startNewGame())}
-          onConsult={() => setState((current) => openConsult(current))}
-        />
-      ) : null}
-
-      {state.screen === "consult" ? (
-        <ConsultScreen
-          situationText={state.situationText}
-          onBack={() => setState((current) => goBack(current))}
-        />
-      ) : null}
-
-      {import.meta.env.DEV ? <DevGate state={state} onChange={setState} /> : null}
+      {run.screen === "home" ? (
+        <HomeScreen onStart={() => commit(openSituation(run))} />
+      ) : (
+        <EightFlow run={run} onChange={commit} />
+      )}
     </Shell>
   )
 }

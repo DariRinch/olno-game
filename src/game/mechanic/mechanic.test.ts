@@ -5,6 +5,7 @@ import {
   beginNextMove,
   couldCards,
   createRun,
+  type Run,
   goBack,
   loadRun,
   openCompare,
@@ -272,7 +273,7 @@ describe("second circle", () => {
   })
 })
 
-function must<T>(value: T | "empty" | "same"): T {
+function must(value: Run | "empty" | "same"): Run {
   if (value === "empty" || value === "same") throw new Error(value)
   return value
 }
@@ -328,14 +329,14 @@ describe("analytics payload", () => {
       "theme",
     ])
 
-    const fetchImpl = vi.fn(async () => new Response("ok"))
+    const fetchImpl = vi.fn(async (_url: string, _init?: RequestInit) => new Response("ok"))
     const held = await sendEvents([dirty], undefined, fetchImpl)
     expect(held).toEqual({ sent: false })
     expect(fetchImpl).not.toHaveBeenCalled()
 
     const sent = await sendEvents([dirty], "https://example.test/events", fetchImpl)
     expect(sent).toEqual({ sent: true, count: 1 })
-    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))
+    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body ?? ""))
     expect(JSON.stringify(body)).not.toContain(SECRET)
     expect(JSON.stringify(body)).not.toContain(OPTION_A)
   })

@@ -151,10 +151,12 @@ export function remember(input: object, store: EventStore): AnalyticEvent {
   return clean
 }
 
+type Poster = (url: string, init: { method: string; headers: { "content-type": string }; body: string }) => Promise<unknown>
+
 export async function sendEvents(
   events: readonly object[],
   url: string | null | undefined,
-  fetchImpl: typeof fetch = fetch,
+  fetchImpl: Poster = fetch,
 ): Promise<{ sent: false } | { sent: true; count: number }> {
   if (!url) return { sent: false }
   const body = events.map((event) => toPayload(event))

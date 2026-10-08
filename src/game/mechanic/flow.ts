@@ -319,7 +319,7 @@ export function goBack(run: Run): Run {
     case "clarify":
       return { ...run, screen: "act" }
     case "card":
-      return run.moves[run.editing]?.answers.length ? { ...run, screen: "clarify" } : { ...run, screen: "act" }
+      return { ...run, screen: "act" }
     case "happened":
       return { ...run, screen: "card" }
     case "route":
@@ -338,6 +338,22 @@ export function goBack(run: Run): Run {
 function dropEmptyDraft(run: Run, screen: ScreenId): Run {
   const moves = run.moves.slice(0, -1)
   return { ...run, moves, editing: Math.max(0, moves.length - 1), screen }
+}
+
+export function clarifyAt(run: Run, index: number): Run {
+  if (!run.moves[index]) return run
+  const focused = { ...run, editing: index }
+  const resolution = resolveMove(run.moves[index].facts)
+  if (resolution.status === "ask") return { ...focused, screen: "clarify" }
+  return reopenClarification(focused)
+}
+
+export function contactCode(move: Move | null): "none" | "started" | "ended" | null {
+  if (!move) return null
+  if (move.facts.startedThenStopped === true) return "ended"
+  if (move.facts.substantialContact === true) return "started"
+  if (move.facts.substantialContact === false) return "none"
+  return null
 }
 
 export function moveTitle(card: CardId | null): string {
