@@ -41,4 +41,6 @@ export type GameState = {
   chosenPlace: PlaceId | null
   alternativeText: string
   alternativeSource: TextSource | null
+  /** Which node is on screen when the player steps back into an earlier node. */
+  focus?: NodeId | null
 }

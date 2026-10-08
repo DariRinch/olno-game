@@ -18,10 +18,12 @@ type NodeScreenProps = {
   phrases?: readonly Phrase[]
   keptText?: string
   keepSource?: TextSource
+  initialText?: string
+  initialSource?: TextSource | null
   onCommit: (text: string, source: TextSource) => "empty" | void
 }
 
-const shift = ["md:pl-0", "md:pl-[14%]", "md:pl-[4%]", "md:pl-[22%]", "md:pl-[8%]", "md:pl-[16%]"]
+const shift = ["md:pl-0", "md:pl-[6%]", "md:pl-[2%]", "md:pl-[10%]", "md:pl-[3%]", "md:pl-[7%]"]
 
 export function NodeScreen({
   index,
@@ -31,10 +33,18 @@ export function NodeScreen({
   phrases,
   keptText,
   keepSource = "own",
+  initialText = "",
+  initialSource = null,
   onCommit,
 }: NodeScreenProps) {
-  const [phraseId, setPhraseId] = useState<string | null>(null)
-  const [words, setWords] = useState("")
+  const matchedPhrase =
+    initialSource === "card" ? (phrases?.find((phrase) => phrase.text === initialText)?.id ?? null) : null
+  const [phraseId, setPhraseId] = useState<string | null>(matchedPhrase)
+  const [words, setWords] = useState(() => {
+    if (!initialText || matchedPhrase) return ""
+    if (keptText && initialText === keptText && initialSource !== "own") return ""
+    return initialText
+  })
   const [error, setError] = useState("")
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -64,14 +74,21 @@ export function NodeScreen({
   const chosen = Boolean(phraseId) || refine
 
   return (
-    <form className="flex flex-1 flex-col" onSubmit={handleSubmit}>
+    <form className="my-auto flex w-full flex-col" onSubmit={handleSubmit}>
       <Wordmark />
-      <div className="mt-8 md:grid md:grid-cols-12 md:gap-x-8 md:gap-y-6">
+      <div
+        className={cn(
+          "mt-5",
+          phrases
+            ? "md:grid md:grid-cols-12 md:gap-x-6 md:gap-y-4"
+            : "mx-auto w-full max-w-xl",
+        )}
+      >
         <div className="md:col-span-5">
           <p className="text-sm text-[var(--olno-burgundy-soft)]">
             Узел {index} из {total} · {title}
           </p>
-          <h1 className="mt-3 max-w-md font-display text-[1.75rem] leading-snug font-semibold tracking-[-0.03em] md:text-4xl">
+          <h1 className="mt-2 max-w-md font-display text-[1.65rem] leading-snug font-semibold tracking-[-0.03em] md:text-3xl">
             {question}
           </h1>
           {keptText ? (
@@ -88,7 +105,7 @@ export function NodeScreen({
         </div>
 
         {phrases ? (
-          <div className="relative mt-8 md:col-span-7 md:col-start-6 md:row-span-3 md:mt-0 md:row-start-1" role="group" aria-label="Фразы">
+          <div className="relative mt-6 md:col-span-7 md:col-start-6 md:row-span-3 md:mt-0 md:row-start-1" role="group" aria-label="Фразы">
             <div className="absolute top-2 bottom-2 left-[1.35rem] w-px bg-[var(--olno-line)] md:left-5" aria-hidden />
             <div className="grid gap-1">
               {phrases.map((phrase, phraseIndex) => {
@@ -114,11 +131,9 @@ export function NodeScreen({
               })}
             </div>
           </div>
-        ) : (
-          <div className="hidden md:col-span-6 md:block" />
-        )}
+        ) : null}
 
-        <div className="mt-8 max-w-md md:col-span-5 md:mt-0">
+        <div className="mt-6 max-w-md md:col-span-5 md:mt-2">
           <Label htmlFor="node-words" className="text-base">
             {phrases ? "Или своими словами" : "Уточнить своими словами"}
           </Label>
@@ -142,7 +157,7 @@ export function NodeScreen({
           ) : null}
         </div>
 
-        <div className="mt-8 md:col-span-5 md:mt-0">
+        <div className="mt-5 md:col-span-5 md:mt-2">
           <Button type="submit" size="lg" className="h-12 w-full text-base sm:w-auto sm:min-w-52">
             {phrases ? "Записать узел" : refine ? "Записать свои слова" : "Оставить так"}
           </Button>

@@ -139,19 +139,34 @@
     color-scheme: light;
     }
   body {
-    background: var(--olno-ivory);
+    background: #e4dfd7;
     }
 }
 
-.path-draw {
-  stroke-dasharray: 100;
-  stroke-dashoffset: 100;
-  animation: olno-draw 3.2s cubic-bezier(0.45, 0, 0.2, 1) forwards;
+.olno-sheet {
+  background-color: #e4dfd7;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: auto 100%;
 }
 
+@media (min-width: 900px) {
+  .olno-sheet {
+    background-size: 100% auto;
+  }
+}
+
+@media (min-aspect-ratio: 2 / 1) {
+  .olno-sheet {
+    background-size: contain;
+  }
+}
+
+.path-draw,
 .path-still {
-  stroke-dasharray: 100;
+  stroke-dasharray: none;
   stroke-dashoffset: 0;
+  animation: olno-line-breath 8s ease-in-out infinite alternate;
 }
 
 .node-ring,
@@ -168,17 +183,28 @@
   animation: olno-fade 0.8s ease forwards;
 }
 
-.ambient-drift {
-  animation: olno-drift 52s ease-in-out infinite alternate;
-}
-
-.ambient-drift-slow {
-  animation: olno-drift 68s ease-in-out infinite alternate-reverse;
-}
-
-.ambient-sway {
-  animation: olno-sway 40s ease-in-out infinite alternate;
+.ambient-breath {
+  animation: olno-breath 8s ease-in-out infinite alternate;
   transform-origin: 50% 100%;
+}
+
+.ambient-breath-late {
+  animation-duration: 9.5s;
+  animation-delay: -4.2s;
+}
+
+.ambient-breath-slow {
+  animation-duration: 11s;
+  animation-delay: -2s;
+}
+
+.ambient-glow {
+  animation: olno-glow 8s ease-in-out infinite alternate;
+}
+
+.ambient-glow-late {
+  animation-duration: 10.5s;
+  animation-delay: -5s;
 }
 
 @keyframes olno-draw {
@@ -207,35 +233,51 @@
   }
 }
 
-@keyframes olno-drift {
+@keyframes olno-breath {
   from {
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0) rotate(-1.6deg) scale(1);
   }
   to {
-    transform: translate3d(1.6%, 2.2%, 0);
+    transform: translate3d(12px, -14px, 0) rotate(2.1deg) scale(1.045);
   }
 }
 
-@keyframes olno-sway {
+@keyframes olno-glow {
   from {
-    transform: rotate(-1.1deg);
+    opacity: 0.55;
+    transform: scale(1);
   }
   to {
-    transform: rotate(1.3deg);
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes olno-line-breath {
+  from {
+    stroke-opacity: 0.72;
+  }
+  to {
+    stroke-opacity: 1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .path-draw {
+  .path-draw,
+  .path-still {
     animation: none;
+    stroke-dasharray: none;
     stroke-dashoffset: 0;
+    stroke-opacity: 1;
   }
 
   .node-ring,
   .node-copy,
-  .ambient-drift,
-  .ambient-drift-slow,
-  .ambient-sway {
+  .ambient-breath,
+  .ambient-breath-late,
+  .ambient-breath-slow,
+  .ambient-glow,
+  .ambient-glow-late {
     animation: none;
     opacity: 1;
     transform: none;

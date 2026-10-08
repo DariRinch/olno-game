@@ -31,10 +31,11 @@ export function submitSituation(
   const text = cleanText(raw)
   if (!text) return "empty"
   return {
-    ...createInitialState(),
+    ...state,
     screen: "node",
     situationText: text,
     situationSource: source,
+    focus: state.nodes.situation ? "situation" : null,
   }
 }
 
@@ -49,11 +50,38 @@ export function submitNode(
   if (!text) return "empty"
 
   const nodes = { ...state.nodes, [nodeId]: { text, source } }
-  const filled = NODE_IDS.every((id) => nodes[id] !== null)
-  return {
-    ...state,
-    nodes,
-    screen: filled ? "loop" : "node",
+  const nextId = NODE_IDS[NODE_IDS.indexOf(nodeId) + 1]
+  if (!nextId) return { ...state, nodes, screen: "loop", focus: null }
+  if (nodes[nextId]) return { ...state, nodes, screen: "node", focus: nextId }
+  return { ...state, nodes, screen: "node", focus: null }
+}
+
+/** One screen backward. Written nodes, the alternative, and the situation stay in the run. */
+export function goBack(state: GameState): GameState {
+  switch (state.screen) {
+    case "home":
+      return state
+    case "situation":
+      return { ...state, screen: "home", focus: null }
+    case "node": {
+      const id = state.focus ?? currentNodeId(state)
+      if (!id) return { ...state, screen: "situation", focus: null }
+      const index = NODE_IDS.indexOf(id)
+      if (index <= 0) return { ...state, screen: "situation", focus: null }
+      const prev = NODE_IDS[index - 1]
+      if (!state.nodes[prev]) return { ...state, screen: "situation", focus: null }
+      return { ...state, screen: "node", focus: prev }
+    }
+    case "loop":
+      return { ...state, screen: "node", focus: "consequence" }
+    case "alternative":
+      return { ...state, screen: "loop", focus: null }
+    case "second-map":
+      return { ...state, screen: "alternative", focus: null }
+    case "consult":
+      return { ...returnToMap(state), focus: null }
+    default:
+      return state
   }
 }
 

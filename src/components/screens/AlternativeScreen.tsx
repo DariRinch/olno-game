@@ -11,13 +11,25 @@ import { Wordmark } from "@/components/Wordmark"
 
 type AlternativeScreenProps = {
   nodes: readonly LoopNodeView[]
+  initialPlace?: PlaceId | null
+  initialText?: string
+  initialSource?: TextSource | null
   onSubmit: (place: PlaceId, text: string, source: TextSource) => "empty" | void
 }
 
-export function AlternativeScreen({ nodes, onSubmit }: AlternativeScreenProps) {
-  const [place, setPlace] = useState<PlaceId | null>(null)
-  const [phraseId, setPhraseId] = useState<string | null>(null)
-  const [words, setWords] = useState("")
+export function AlternativeScreen({
+  nodes,
+  initialPlace = null,
+  initialText = "",
+  initialSource = null,
+  onSubmit,
+}: AlternativeScreenProps) {
+  const [place, setPlace] = useState<PlaceId | null>(initialPlace)
+  const [phraseId, setPhraseId] = useState<string | null>(() => {
+    if (initialSource !== "card" || !initialPlace || !initialText) return null
+    return alternativePhrases[initialPlace].find((item) => item.text === initialText)?.id ?? null
+  })
+  const [words, setWords] = useState(() => (initialSource === "own" ? initialText : ""))
   const [error, setError] = useState("")
   const hints = place ? alternativePhrases[place] : []
   const chosen = Boolean(phraseId) || words.trim().length > 0
@@ -57,11 +69,11 @@ export function AlternativeScreen({ nodes, onSubmit }: AlternativeScreenProps) {
   }
 
   return (
-    <form className="flex flex-1 flex-col" onSubmit={handleSubmit}>
-      <div className="xl:grid xl:h-[calc(100dvh-6.5rem)] xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)] xl:grid-rows-[auto_minmax(0,1fr)] xl:gap-x-12">
+    <form className="my-auto flex w-full flex-col" onSubmit={handleSubmit}>
+      <div className="xl:grid xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] xl:items-start xl:gap-x-8">
         <div className="xl:col-start-1 xl:row-start-1">
           <Wordmark />
-          <h1 className="mt-5 max-w-xs font-display text-4xl leading-tight font-semibold tracking-[-0.03em]">
+          <h1 className="mt-4 max-w-xs font-display text-3xl leading-tight font-semibold tracking-[-0.03em] md:text-4xl">
             Что могло бы быть иначе?
           </h1>
           <p className="mt-3 max-w-sm text-base leading-relaxed text-[var(--olno-burgundy-soft)]">
@@ -76,7 +88,7 @@ export function AlternativeScreen({ nodes, onSubmit }: AlternativeScreenProps) {
               branch={previewBranch}
               draw="still"
               variant="panel"
-              className="xl:!h-full xl:!min-h-0"
+              className="xl:min-h-[22rem]"
               activeId={place ? changedNodeId(place) : undefined}
               keptCaption={previewBranch ? "Как происходит сейчас" : undefined}
               branchCaption={previewBranch ? "Как могло бы быть иначе" : undefined}

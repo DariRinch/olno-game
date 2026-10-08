@@ -9,10 +9,10 @@ type ConsultScreenProps = {
 
 export function ConsultScreen({ situationText, onBack }: ConsultScreenProps) {
   return (
-    <div className="grid min-h-[calc(100dvh-6rem)] content-between gap-12 md:grid-cols-12">
-      <div className="max-w-md md:col-span-6 md:self-start">
+    <div className="my-auto grid w-full gap-8">
+      <div className="max-w-md">
         <Wordmark />
-        <p className="mt-8 text-sm text-[var(--olno-burgundy-soft)]">Консультация</p>
+        <p className="mt-5 text-sm text-[var(--olno-burgundy-soft)]">Консультация</p>
         <h1 className="mt-1 font-display text-4xl leading-tight font-semibold tracking-[-0.03em]">
           Разобрать карту с Ольгой
         </h1>
@@ -26,7 +26,7 @@ export function ConsultScreen({ situationText, onBack }: ConsultScreenProps) {
           </a>
         ) : null}
       </div>
-      <div className="md:col-span-4 md:col-start-8 md:self-end">
+      <div>
         <Button type="button" size="lg" variant="outline" className="h-12 w-full border-[var(--olno-line)] bg-transparent text-base sm:w-auto" onClick={onBack}>
           Вернуться к карте
         </Button>

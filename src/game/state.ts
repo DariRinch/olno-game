@@ -33,12 +33,14 @@ export function createInitialState(): GameState {
     chosenPlace: null,
     alternativeText: "",
     alternativeSource: null,
+    focus: null,
   }
 }
 
 export function isPristineHome(state: GameState): boolean {
   return (
     state.screen === "home" &&
+    !state.focus &&
     state.situationText === "" &&
     state.situationSource === null &&
     state.chosenPlace === null &&
@@ -49,6 +51,7 @@ export function isPristineHome(state: GameState): boolean {
 }
 
 export function currentNodeId(state: GameState): NodeId | null {
+  if (state.screen === "node" && state.focus) return state.focus
   return NODE_IDS.find((id) => state.nodes[id] === null) ?? null
 }
 
@@ -127,11 +130,13 @@ function isGameState(value: unknown): value is GameState {
   if (value.chosenPlace !== null && !isPlace(value.chosenPlace)) return false
   if (typeof value.alternativeText !== "string") return false
   if (value.alternativeSource !== null && !isSource(value.alternativeSource)) return false
+  if ("focus" in value && value.focus != null && !NODE_IDS.some((id) => id === value.focus)) return false
 
   const complete = NODE_IDS.every((id) => isNodeText(nodes[id]))
   const hasAlternative = value.alternativeText.trim() !== "" && value.alternativeSource !== null && value.chosenPlace !== null
 
-  if (value.screen === "node" && (value.situationText.trim() === "" || complete)) return false
+  if (value.screen === "node" && value.situationText.trim() === "") return false
+  if (value.screen === "node" && complete && !NODE_IDS.some((id) => id === value.focus)) return false
   if ((value.screen === "loop" || value.screen === "alternative") && !complete) return false
   if ((value.screen === "second-map" || value.screen === "consult") && (!complete || !hasAlternative)) return false
   return true

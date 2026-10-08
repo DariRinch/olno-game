@@ -53,8 +53,7 @@ export function LoopMap({
   return (
     <div
       className={cn(
-        "w-full",
-        variant === "stage" ? "md:min-h-[calc(100dvh-4.5rem)]" : "md:h-[calc(100dvh-6.5rem)] md:min-h-[28rem]",
+        variant === "stage" ? "w-full" : "w-full md:min-h-[18rem]",
         className,
       )}
     >
@@ -68,13 +67,20 @@ export function LoopMap({
       />
       <div
         className={cn(
-          "relative hidden h-full w-full md:grid md:grid-rows-[auto_minmax(12rem,1fr)_auto]",
-          branchSide === "right" &&
+          "relative hidden md:grid",
+          variant === "stage"
+            ? "w-full md:grid-cols-[minmax(11rem,1fr)_minmax(18rem,24rem)_minmax(11rem,1fr)] md:grid-rows-[auto_minmax(18rem,24rem)_auto]"
+            : "h-full w-full md:grid-rows-[auto_minmax(14rem,20rem)_auto]",
+          variant !== "stage" &&
+            branchSide === "right" &&
             "md:grid-cols-[minmax(9.5rem,0.8fr)_minmax(12rem,1.15fr)_minmax(18rem,1.25fr)]",
-          branchSide === "left" &&
+          variant !== "stage" &&
+            branchSide === "left" &&
             "md:grid-cols-[minmax(18rem,1.25fr)_minmax(12rem,1.15fr)_minmax(9.5rem,0.8fr)]",
-          branchSide === "none" && "md:grid-cols-[minmax(11rem,0.9fr)_minmax(16rem,1.4fr)_minmax(11rem,0.9fr)]",
-          variant === "stage" ? "min-h-[calc(100dvh-4.5rem)]" : "h-full min-h-[28rem]",
+          variant !== "stage" &&
+            branchSide === "none" &&
+            "md:grid-cols-[minmax(10rem,0.85fr)_minmax(12rem,1fr)_minmax(10rem,0.85fr)]",
+          variant === "stage" ? "min-h-0" : "min-h-[18rem]",
         )}
       >
         {ordered.map((node) => (
@@ -90,20 +96,20 @@ export function LoopMap({
         ))}
         <div className="relative col-start-2 row-start-2 min-h-[12rem]">
           <svg
-            className="pointer-events-none absolute inset-0 size-full"
+            className="pointer-events-none absolute inset-0 size-full overflow-visible"
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
             aria-hidden
           >
-            <path
-              d="M 0 0 H 100 V 100 H 0 Z"
+            <rect
+              x="1"
+              y="1"
+              width="98"
+              height="98"
               fill="none"
               stroke="var(--olno-gold)"
-              strokeWidth="1.35"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              strokeWidth="1.5"
               vectorEffect="non-scaling-stroke"
-              pathLength={100}
               className={cn(draw === "enter" ? "path-draw" : "path-still", changed && "opacity-45")}
             />
           </svg>
@@ -155,7 +161,7 @@ function CornerCopy({
   if (!changed) {
     return (
       <div className={cn("flex min-w-0", PLACE_FRAME[place])} data-node={node.id}>
-        <Copy node={node} className={cn(copyClass, "max-w-[16rem]")} style={copyStyle} />
+        <Copy node={node} className={cn(copyClass, "max-w-full")} style={copyStyle} />
       </div>
     )
   }
@@ -188,17 +194,17 @@ const PLACE_CELL: Record<"tl" | "tr" | "br" | "bl", string> = {
 }
 
 const PLACE_FRAME: Record<"tl" | "tr" | "br" | "bl", string> = {
-  tl: "col-start-1 row-start-1 self-end items-end justify-end pr-10 pb-5 text-right",
-  tr: "col-start-3 row-start-1 self-end items-end justify-start pb-5 pl-10",
-  br: "col-start-3 row-start-3 self-start items-start justify-start pt-5 pl-10",
-  bl: "col-start-1 row-start-3 self-start items-start justify-end pt-5 pr-10 text-right",
+  tl: "col-start-1 row-start-1 self-end items-end justify-end pr-4 pb-3 text-right",
+  tr: "col-start-3 row-start-1 self-end items-end justify-start pb-3 pl-4",
+  br: "col-start-3 row-start-3 self-start items-start justify-start pt-3 pl-4",
+  bl: "col-start-1 row-start-3 self-start items-start justify-end pt-3 pr-4 text-right",
 }
 
 const TEXT_PAD: Record<"tl" | "tr" | "br" | "bl", string> = {
-  tl: "pr-10 pb-5",
-  tr: "pb-4 pl-10",
-  br: "pt-4 pl-10",
-  bl: "pt-4 pr-10",
+  tl: "pr-4 pb-3",
+  tr: "pb-3 pl-4",
+  br: "pt-3 pl-4",
+  bl: "pt-3 pr-4",
 }
 
 function Copy({
@@ -286,7 +292,7 @@ function PhoneLoop({
           className={draw === "enter" ? "path-draw" : "path-still"}
         />
       </svg>
-      <ol aria-label="Петля" className="relative z-[1] m-0 grid list-none gap-8 p-0">
+      <ol aria-label="Петля" className="relative z-[1] m-0 grid list-none gap-5 p-0">
         {ordered.map((node, index) => {
           const delay = `${0.1 + index * 0.45}s`
           const isChanged = changed?.id === node.id

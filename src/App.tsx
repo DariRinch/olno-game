@@ -11,11 +11,11 @@ import { DevGate } from "@/dev/DevGate"
 import { nodeMeta, nodePhrases, places } from "@/game/cards"
 import {
   changedNodeId,
+  goBack,
   loopTexts,
   openAlternative,
   openConsult,
   openSituation,
-  returnToMap,
   startNewGame,
   submitAlternative,
   submitNode,
@@ -42,7 +42,11 @@ export default function App() {
   }, [state])
 
   const nodeId = currentNodeId(state)
-  const wide = state.screen === "home" || state.screen === "loop" || state.screen === "second-map"
+  const wide =
+    state.screen === "home" ||
+    state.screen === "loop" ||
+    state.screen === "second-map" ||
+    state.screen === "alternative"
   const nowTexts = loopTexts(state, "now")
   const altTexts = loopTexts(state, "otherwise")
   const placeLabel = places.find((place) => place.id === state.chosenPlace)?.label
@@ -52,13 +56,19 @@ export default function App() {
       : undefined
 
   return (
-    <Shell screen={state.screen} width={wide ? "wide" : "prose"}>
+    <Shell
+      screen={state.screen}
+      width={wide ? "wide" : "prose"}
+      onBack={state.screen === "home" ? undefined : () => setState((current) => goBack(current))}
+    >
       {state.screen === "home" ? (
         <HomeScreen onStart={() => setState((current) => openSituation(current))} />
       ) : null}
 
       {state.screen === "situation" ? (
         <SituationScreen
+          initialText={state.situationText}
+          initialSource={state.situationSource}
           onSubmit={(text, source) => {
             const result = submitSituation(state, text, source)
             if (result === "empty") return "empty"
@@ -77,6 +87,8 @@ export default function App() {
           phrases={nodeId === "situation" ? undefined : nodePhrases[nodeId]}
           keptText={nodeId === "situation" ? state.situationText : undefined}
           keepSource={state.situationSource ?? "own"}
+          initialText={state.nodes[nodeId]?.text ?? ""}
+          initialSource={state.nodes[nodeId]?.source ?? null}
           onCommit={(text, source) => {
             const result = submitNode(state, nodeId, text, source)
             if (result === "empty") return "empty"
@@ -92,6 +104,9 @@ export default function App() {
       {state.screen === "alternative" ? (
         <AlternativeScreen
           nodes={nowTexts ? toViews(nowTexts) : []}
+          initialPlace={state.chosenPlace}
+          initialText={state.alternativeText}
+          initialSource={state.alternativeSource}
           onSubmit={(place, text, source) => {
             const result = submitAlternative(state, place, text, source)
             if (result === "empty") return "empty"
@@ -112,7 +127,7 @@ export default function App() {
       {state.screen === "consult" ? (
         <ConsultScreen
           situationText={state.situationText}
-          onBack={() => setState((current) => returnToMap(current))}
+          onBack={() => setState((current) => goBack(current))}
         />
       ) : null}
 
